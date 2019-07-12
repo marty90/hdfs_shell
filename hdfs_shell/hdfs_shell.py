@@ -1,0 +1,98 @@
+#!/usr/bin/python3
+import readline
+import signal
+import subprocess
+import sys
+import os
+import re
+
+CHECK_DIR=True
+USER = subprocess.check_output(['whoami']).decode("ascii").strip()
+HOST=os.uname()[1]
+HISTORY_FILE="{}/.hdfs_shell_histo".format(os.environ["HOME"])
+OUT_FORMAT = "(HDFS) {}@{}:{}$ "
+HDFS_CMDS_NO_ARG = {"ls", "du"}
+BASE_DIR = "/user/{}".format(USER)
+HDFS_CMDS={'appendToFile', 'cat', 'chgrp', 'chmod', 'chown', 'copyFromLocal', 'copyToLocal', 'count', 'cp', 'du', 'dus', 'expunge', 'get', 'getfacl', 'getmerge', 'ls', 'lsr', 'mkdir', 'moveFromLocal', 'moveToLocal', 'mv', 'put', 'rm', 'rmr', 'setfacl', 'setrep', 'stat', 'tail', 'test', 'text', 'touchz'}
+
+def signal_handler(sig, frame):
+    print('\nQuitting...')
+    readline.write_history_file(HISTORY_FILE)
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+
+if os.path.isfile(HISTORY_FILE):
+    readline.read_history_file(HISTORY_FILE)
+cwd=BASE_DIR
+while True:
+    cmd = input(OUT_FORMAT.format(USER, HOST, cwd))
+    
+    if re.match("^ *$", cmd):
+        pass
+    elif re.match("^pwd *", cmd):
+        print (cwd)
+    elif re.match("^cd .+", cmd):
+    
+        arg = cmd.split()[-1]
+        if not arg.startswith("/"):
+            arg = "{}/{}".format(cwd, arg)
+            arg = arg.replace("//","/")
+        if CHECK_DIR:
+            try:
+                subprocess.check_output("hdfs dfs -ls {}".format(arg), shell=True)
+                cwd=arg
+            except:
+                pass
+        else:
+            cwd=arg
+    elif re.match("^cd *", cmd):
+        cwd=BASE_DIR
+    elif cmd.split()[0] in HDFS_CMDS:
+    
+        # Split command
+        commands = cmd.split("|")
+        pieces = commands[0].split()
+        
+        # Check arguments
+        new_pieces = [pieces[0]]
+        # Adjust spurious ls
+        positional_arguments = len( [p for p in pieces if not p.startswith("-")  ] ) 
+        if pieces[0] in HDFS_CMDS_NO_ARG and positional_arguments == 1:
+            new_pieces = pieces
+            new_pieces.append(cwd)
+        # Correct paths
+        else:
+            for p in pieces[1:]:
+                if not p.startswith("-") and not p.startswith("/"):
+                    p = "{}/{}".format(cwd, p)
+                new_pieces.append(p)
+    
+        new_command = " ".join(new_pieces)
+        if len (commands) > 1:
+            new_command += " | " + "|".join(commands[1:])
+        
+        
+        hdfs_cmd = "hdfs dfs -{}".format(new_command)
+        try:
+            print (hdfs_cmd)
+            output = subprocess.check_output(hdfs_cmd, shell=True).decode("ascii").strip()
+            print(output)
+        except subprocess.CalledProcessError as e:
+            #print ("Error")
+            #print (e)
+            pass
+    elif re.match("^!.+", cmd):
+        try:
+            output = subprocess.check_output(cmd[1:], shell=True).decode("ascii").strip()
+            print(output)
+        except subprocess.CalledProcessError as e:        
+            pass
+    elif re.match("^exit", cmd) or re.match("^quit", cmd) or re.match("^logout", cmd):
+        print('Quitting...')
+        readline.write_history_file(HISTORY_FILE)
+        break           
+            
+#process = subprocess.Popen(['ls', '-a'], stdout=subprocess.PIPE)
+
+
+
