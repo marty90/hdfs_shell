@@ -35,4 +35,9 @@ You can change directory with `cd`. As such, all paths that you enter in the she
 To execute a bash command, use the prefix `!`. E.g., `!ls` will list file in your local directory
 
 # Limitations
+
 Commands that interact with the local file system like `put` or `copyToLocal` are not yet supported.
+
+Interactive programs like `less` and `tabview` are not supported.
+
+Autocompletion does not work (but shell history yes!)

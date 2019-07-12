@@ -74,12 +74,10 @@ while True:
         
         hdfs_cmd = "hdfs dfs -{}".format(new_command)
         try:
-            print (hdfs_cmd)
+            #print (hdfs_cmd)
             output = subprocess.check_output(hdfs_cmd, shell=True).decode("ascii").strip()
             print(output)
         except subprocess.CalledProcessError as e:
-            #print ("Error")
-            #print (e)
             pass
     elif re.match("^!.+", cmd):
         try:
